@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import stationRoutes from "./routes/station.routes.js";
 import userRoutes from "./routes/user.routes.js";
-
+import bookingRoutes from './routes/booking.routes.js';
 dotenv.config();
 const app = express();
 
@@ -32,7 +32,7 @@ app.use("/uploads", express.static("uploads"));
 // ✅ Routes
 app.use("/api/stations", stationRoutes);
 app.use("/api/users", userRoutes);
-
+app.use('/api/bookings', bookingRoutes);
 // ✅ MongoDB Connection
 mongoose
   .connect(process.env.MONGODB_URI)

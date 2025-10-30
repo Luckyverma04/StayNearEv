@@ -4,16 +4,26 @@ import fs from "fs";
 
 // ===============================
 // Create Station
-// ===============================
 export const createStation = async (req, res) => {
   try {
-    const { name, location, pricePerUnit, description, amenities } = req.body;
+    const { name, location, pricePerUnit, description, amenities, chargerTypes } = req.body;
+
+    // Parse chargerTypes if it's a string (from frontend)
+    let parsedChargerTypes = [];
+    if (chargerTypes) {
+      if (typeof chargerTypes === 'string') {
+        parsedChargerTypes = JSON.parse(chargerTypes);
+      } else {
+        parsedChargerTypes = chargerTypes;
+      }
+    }
 
     const station = await Station.create({
       name,
       location,
       pricePerUnit,
       description,
+      chargerTypes: parsedChargerTypes, // Add this line
       amenities: amenities ? amenities.split(",").map(a => a.trim()) : [],
       images: req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [],
       host: req.user.userId,
@@ -32,7 +42,6 @@ export const createStation = async (req, res) => {
     });
   }
 };
-
 // ===============================
 // Get All Stations
 // ===============================
@@ -79,45 +88,34 @@ export const getStationById = async (req, res) => {
 // ===============================
 export const updateStation = async (req, res) => {
   try {
-    const station = await Station.findById(req.params.id);
-    if (!station) return res.status(404).json({ success: false, message: "Station not found" });
+    const { name, location, pricePerUnit, description, amenities, chargerTypes } = req.body;
 
-    const { name, location, pricePerUnit, description, amenities } = req.body;
-    if (name) station.name = name;
-    if (location) station.location = location;
-    if (pricePerUnit) station.pricePerUnit = pricePerUnit;
-    if (description) station.description = description;
-
-    if (amenities) {
-      try {
-        station.amenities = Array.isArray(amenities)
-          ? amenities
-          : JSON.parse(amenities);
-      } catch {
-        station.amenities = amenities.split(",").map(a => a.trim());
+    // Parse chargerTypes if it's a string
+    let parsedChargerTypes = [];
+    if (chargerTypes) {
+      if (typeof chargerTypes === 'string') {
+        parsedChargerTypes = JSON.parse(chargerTypes);
+      } else {
+        parsedChargerTypes = chargerTypes;
       }
     }
 
-    if (req.files && req.files.length > 0) {
-      if (station.images?.length) {
-        station.images.forEach((imgPath) => {
-          const fullPath = path.join(process.cwd(), "uploads", path.basename(imgPath));
-          try {
-            if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-          } catch (err) {
-            console.error("Error deleting old image:", err);
-          }
-        });
-      }
+    const updateData = {
+      name,
+      location,
+      pricePerUnit,
+      description,
+      chargerTypes: parsedChargerTypes, // Add this line
+      amenities: amenities ? amenities.split(",").map(a => a.trim()) : [],
+    };
 
-      station.images = req.files.map((file) => `/uploads/${file.filename}`);
-    }
-
-    await station.save();
-    res.json({ success: true, message: "Station updated successfully", station });
+    // ... rest of your update logic
   } catch (error) {
     console.error("Update station error:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to update station",
+    });
   }
 };
 

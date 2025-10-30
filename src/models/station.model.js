@@ -21,6 +21,10 @@ const stationSchema = new mongoose.Schema(
     host: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     reviews: { type: [reviewSchema], default: [] },
     averageRating: { type: Number, default: 0 },
+    chargerTypes: [{
+    type: String,
+    default: []
+  }],
   },
   { timestamps: true }
 );
