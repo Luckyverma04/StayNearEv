@@ -18,7 +18,7 @@ app.use(
       "http://127.0.0.1:5173",
       "http://localhost:5177",
       "http://127.0.0.1:5177",
-      "https://staynearevfrontend.onrender.com" // 👈 add your deployed frontend here when ready
+      "https://staynearevfrontend.onrender.com"  // ✅ Add your deployed frontend URL
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
