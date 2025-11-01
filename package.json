@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/server.js",
-  "scripts": {
-    "dev": "nodemon src/server.js"
-  },
+"scripts": {
+  "start": "node src/server.js"
+},
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
