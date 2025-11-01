@@ -136,12 +136,11 @@ const signup = async (req, res) => {
     const verificationToken = user.generateEmailVerificationToken();
     await user.save();
 
-    // Send verification email (ORIGINAL CODE)
-    try {
-      await sendVerificationEmail(email, verificationToken, name, role);
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
-    }
+    // ✅ YEH PART CHANGE KARO - NAYA EMAIL SEND METHOD
+    // Send verification email (but don't block registration if it fails)
+    sendVerificationEmail(email, verificationToken, name, role)
+      .then(() => console.log(`✅ Verification email sent to ${email}`))
+      .catch(err => console.error(`❌ Failed to send email to ${email}:`, err.message));
 
     res.status(201).json({
       success: true,
@@ -171,7 +170,6 @@ const signup = async (req, res) => {
     });
   }
 };
-
 // Keep all other functions the same as your original code
 const login = async (req, res) => {
   try {

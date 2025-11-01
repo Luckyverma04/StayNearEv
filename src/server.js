@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 import stationRoutes from "./routes/station.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
-import fetch from "node-fetch"; // ✅ used for keep-alive ping
 
 dotenv.config();
 const app = express();
@@ -18,7 +17,7 @@ app.use(
       "http://127.0.0.1:5173",
       "http://localhost:5177",
       "http://127.0.0.1:5177",
-      "https://staynearevfrontend.onrender.com"  // ✅ Add your deployed frontend URL
+      "https://staynearevfrontend.onrender.com"
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -54,11 +53,3 @@ const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
-
-// ✅ KEEP ALIVE PING EVERY 5 MINUTES
-const SELF_URL = "https://staynearevbackend.onrender.com"; // 👈 your Render backend URL
-setInterval(() => {
-  fetch(SELF_URL)
-    .then((res) => console.log(`🟢 Keep-alive ping successful: ${res.status}`))
-    .catch((err) => console.error("🔴 Keep-alive ping failed:", err.message));
-}, 5 * 60 * 1000); // 5 minutes
