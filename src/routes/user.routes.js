@@ -29,5 +29,4 @@ router.delete("/me", authMiddleware, deleteMyAccount);
 router.delete("/delete/:id", authMiddleware, deleteUser);
 router.post("/manual-verify", manualVerifyEmail);
 
-// ✅ Export properly for ESM
 export default router;
