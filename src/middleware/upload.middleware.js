@@ -3,20 +3,18 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-// Get __dirname equivalent
+// ✅ Resolve __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Save uploads in 'src/uploads'
-const uploadDir = path.join(__dirname, "../uploads");
-
-// ✅ Create folder if missing
+// ✅ Save uploads in backend/uploads
+const uploadDir = path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
-  console.log("✅ Created uploads directory:", uploadDir);
+  console.log("✅ Created uploads folder:", uploadDir);
 }
 
-// ✅ Storage configuration
+// ✅ Multer storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -26,16 +24,16 @@ const storage = multer.diskStorage({
   },
 });
 
-// ✅ Allow only image files
+// ✅ File filter
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp/;
-  const isValid =
-    allowed.test(path.extname(file.originalname).toLowerCase()) &&
-    allowed.test(file.mimetype);
+  const allowed = /jpeg|jpg|png|webp|avif/;
+  const ext = path.extname(file.originalname).toLowerCase();
+  const mime = file.mimetype;
+  const isValid = allowed.test(ext) && allowed.test(mime);
   cb(isValid ? null : new Error("Only image files allowed!"), isValid);
 };
 
-// ✅ Create multer instance
+// ✅ Export multer instance
 export const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB

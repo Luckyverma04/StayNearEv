@@ -12,7 +12,7 @@ import bookingRoutes from "./routes/booking.routes.js";
 dotenv.config();
 const app = express();
 
-// ✅ Resolve directory safely for uploads
+// ✅ Resolve __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -35,7 +35,7 @@ app.use(
 app.options("*", cors());
 app.use(express.json());
 
-// ✅ Corrected static path for uploads
+// ✅ Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ✅ API Routes
