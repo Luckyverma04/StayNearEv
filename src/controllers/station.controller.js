@@ -1,16 +1,31 @@
 import Station from "../models/station.model.js";
-import path from "path";
-import fs from "fs";
 import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 
 // ===============================
 // Create Station
 export const createStation = async (req, res) => {
   try {
+    // ✅ ADDED: Debug logging for authentication
+    console.log('🔐 Auth Debug - req.user:', req.user);
+    console.log('🔐 Auth Debug - req.user.userId:', req.user?.userId);
+    console.log('🔐 Auth Debug - req.headers:', req.headers.authorization);
+    
     const { name, location, description, pricePerUnit, amenities, chargerTypes } = req.body;
     
-    console.log('📝 Creating station with data:', { name, location, pricePerUnit });
-    console.log('📁 Files received:', req.files ? req.files.length : 0);
+    // ✅ ADDED: Check if user is properly authenticated
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated. Please login again.'
+      });
+    }
+    
+    console.log('📝 Creating station with data:', { 
+      name, 
+      location, 
+      pricePerUnit,
+      host: req.user.userId  // ✅ FIXED: Use userId
+    });
     
     let imageUrls = [];
     
@@ -51,7 +66,7 @@ export const createStation = async (req, res) => {
       amenities: amenities ? JSON.parse(amenities) : [],
       chargerTypes: chargerTypes ? JSON.parse(chargerTypes) : [],
       images: imageUrls,
-      host: req.user.id,
+      host: req.user.userId,  // ✅ FIXED: Use userId instead of id
     });
     
     await station.save();
@@ -92,8 +107,8 @@ export const getAllStations = async (req, res) => {
 export const getStationById = async (req, res) => {
   try {
     const station = await Station.findById(req.params.id)
-      .populate("host", "name email username") // ADD THIS LINE - populate host
-      .populate("reviews.user", "name email"); // Keep existing review user population
+      .populate("host", "name email username")
+      .populate("reviews.user", "name email");
     
     if (!station) {
       return res.status(404).json({ 
@@ -120,6 +135,9 @@ export const getStationById = async (req, res) => {
 // ===============================
 export const updateStation = async (req, res) => {
   try {
+    // ✅ ADDED: Debug logging
+    console.log('🔐 Update Station - req.user:', req.user);
+    
     const { name, location, description, pricePerUnit, amenities, chargerTypes } = req.body;
     const station = await Station.findById(req.params.id);
     
@@ -127,8 +145,8 @@ export const updateStation = async (req, res) => {
       return res.status(404).json({ message: 'Station not found' });
     }
     
-    // Check if user owns the station
-    if (station.host.toString() !== req.user.id) {
+    // ✅ FIXED: Use userId instead of id
+    if (station.host.toString() !== req.user.userId) {
       return res.status(403).json({ message: 'Not authorized to update this station' });
     }
     
@@ -160,7 +178,7 @@ export const updateStation = async (req, res) => {
     station.amenities = amenities ? JSON.parse(amenities) : station.amenities;
     station.chargerTypes = chargerTypes ? JSON.parse(chargerTypes) : station.chargerTypes;
     
-    // Combine existing images with new ones (or replace based on your logic)
+    // Combine existing images with new ones
     station.images = [...station.images, ...newImageUrls];
     
     await station.save();
@@ -180,8 +198,6 @@ export const updateStation = async (req, res) => {
     });
   }
 };
-
-
 
 // ===============================
 // Delete Station
