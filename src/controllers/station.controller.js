@@ -1,47 +1,65 @@
 import Station from "../models/station.model.js";
 import path from "path";
 import fs from "fs";
+import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
 
 // ===============================
 // Create Station
 export const createStation = async (req, res) => {
   try {
-    const { name, location, pricePerUnit, description, amenities, chargerTypes } = req.body;
-
-    // Parse chargerTypes if it's a string (from frontend)
-    let parsedChargerTypes = [];
-    if (chargerTypes) {
-      if (typeof chargerTypes === 'string') {
-        parsedChargerTypes = JSON.parse(chargerTypes);
-      } else {
-        parsedChargerTypes = chargerTypes;
-      }
+    const { name, location, description, pricePerUnit, amenities, chargerTypes } = req.body;
+    
+    let imageUrls = [];
+    
+    // Upload images to Cloudinary
+    if (req.files && req.files.length > 0) {
+      console.log(`📤 Uploading ${req.files.length} images to Cloudinary...`);
+      
+      const uploadPromises = req.files.map(async (file) => {
+        try {
+          const result = await uploadToCloudinary(file.buffer);
+          console.log('✅ Image uploaded to Cloudinary:', result.secure_url);
+          return result.secure_url; // Cloudinary URL
+        } catch (error) {
+          console.error('❌ Error uploading to Cloudinary:', error);
+          throw new Error('Failed to upload image to Cloudinary');
+        }
+      });
+      
+      imageUrls = await Promise.all(uploadPromises);
     }
-
-    const station = await Station.create({
+    
+    const station = new Station({
       name,
       location,
-      pricePerUnit,
       description,
-      chargerTypes: parsedChargerTypes, // Add this line
-      amenities: amenities ? amenities.split(",").map(a => a.trim()) : [],
-      images: req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [],
-      host: req.user.userId,
+      pricePerUnit,
+      amenities: amenities ? JSON.parse(amenities) : [],
+      chargerTypes: chargerTypes ? JSON.parse(chargerTypes) : [],
+      images: imageUrls, // Store Cloudinary URLs
+      host: req.user.id,
     });
-
+    
+    await station.save();
+    
+    // Populate host details
+    await station.populate('host', 'name email');
+    
     res.status(201).json({
       success: true,
-      message: "Station created successfully",
-      station,
+      message: 'Station created successfully',
+      station
     });
+    
   } catch (error) {
-    console.error("Create station error:", error);
+    console.error('❌ Error creating station:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to create station",
+      message: error.message
     });
   }
 };
+
 // ===============================
 // Get All Stations
 // ===============================
@@ -88,36 +106,68 @@ export const getStationById = async (req, res) => {
 // ===============================
 export const updateStation = async (req, res) => {
   try {
-    const { name, location, pricePerUnit, description, amenities, chargerTypes } = req.body;
-
-    // Parse chargerTypes if it's a string
-    let parsedChargerTypes = [];
-    if (chargerTypes) {
-      if (typeof chargerTypes === 'string') {
-        parsedChargerTypes = JSON.parse(chargerTypes);
-      } else {
-        parsedChargerTypes = chargerTypes;
-      }
+    const { name, location, description, pricePerUnit, amenities, chargerTypes } = req.body;
+    const station = await Station.findById(req.params.id);
+    
+    if (!station) {
+      return res.status(404).json({ message: 'Station not found' });
     }
-
-    const updateData = {
-      name,
-      location,
-      pricePerUnit,
-      description,
-      chargerTypes: parsedChargerTypes, // Add this line
-      amenities: amenities ? amenities.split(",").map(a => a.trim()) : [],
-    };
-
-    // ... rest of your update logic
+    
+    // Check if user owns the station
+    if (station.host.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to update this station' });
+    }
+    
+    let newImageUrls = [];
+    
+    // Upload new images to Cloudinary
+    if (req.files && req.files.length > 0) {
+      console.log(`📤 Uploading ${req.files.length} new images to Cloudinary...`);
+      
+      const uploadPromises = req.files.map(async (file) => {
+        try {
+          const result = await uploadToCloudinary(file.buffer);
+          console.log('✅ New image uploaded to Cloudinary:', result.secure_url);
+          return result.secure_url;
+        } catch (error) {
+          console.error('❌ Error uploading to Cloudinary:', error);
+          throw new Error('Failed to upload new images');
+        }
+      });
+      
+      newImageUrls = await Promise.all(uploadPromises);
+    }
+    
+    // Update station
+    station.name = name || station.name;
+    station.location = location || station.location;
+    station.description = description || station.description;
+    station.pricePerUnit = pricePerUnit || station.pricePerUnit;
+    station.amenities = amenities ? JSON.parse(amenities) : station.amenities;
+    station.chargerTypes = chargerTypes ? JSON.parse(chargerTypes) : station.chargerTypes;
+    
+    // Combine existing images with new ones (or replace based on your logic)
+    station.images = [...station.images, ...newImageUrls];
+    
+    await station.save();
+    await station.populate('host', 'name email');
+    
+    res.json({
+      success: true,
+      message: 'Station updated successfully',
+      station
+    });
+    
   } catch (error) {
-    console.error("Update station error:", error);
+    console.error('❌ Error updating station:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to update station",
+      message: error.message
     });
   }
 };
+
+
 
 // ===============================
 // Delete Station
