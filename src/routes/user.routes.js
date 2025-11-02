@@ -1,5 +1,5 @@
 import express from "express";
-import { testEmailConnection } from "../utils/emailService.utils.js";
+import { testEmailConnection } from "../utils/gmailService.utils.js"; // ✅ FIXED IMPORT
 import {
   signup,
   login,
@@ -29,20 +29,25 @@ router.put("/verify-host/:hostId", authMiddleware, verifyHost);
 router.delete("/me", authMiddleware, deleteMyAccount);
 router.delete("/delete/:id", authMiddleware, deleteUser);
 router.post("/manual-verify", manualVerifyEmail);
+
+// Email test route
 router.get("/test-email", async (req, res) => {
   try {
     console.log("🧪 Starting email test...");
     const result = await testEmailConnection();
     
-    if (result) {
+    if (result.success) {
       res.json({ 
         success: true, 
-        message: "✅ Email test completed successfully! Check your Gmail inbox and server logs for details." 
+        message: "✅ Email test completed successfully! Check your Gmail inbox and server logs for details.",
+        config: result.config,
+        messageId: result.messageId
       });
     } else {
       res.status(500).json({ 
         success: false, 
-        message: "❌ Email test failed. Check server logs for error details." 
+        message: "❌ Email test failed. Check server logs for error details.",
+        error: result.error
       });
     }
   } catch (error) {
@@ -53,4 +58,5 @@ router.get("/test-email", async (req, res) => {
     });
   }
 });
+
 export default router;

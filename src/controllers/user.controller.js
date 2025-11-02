@@ -1,8 +1,7 @@
 import crypto from "crypto";
 import { User, UserRole } from "../models/user.model.js";
 import { generateToken } from "../utils/jwt.utils.js";
-import { sendVerificationEmail, sendWelcomeEmail, sendHostApprovalEmail } from "../utils/emailService.utils.js";
-
+import { sendVerificationEmail, sendWelcomeEmail, sendHostApprovalEmail } from "../utils/gmailService.utils.js";
 
 // Create default admin user (run once)
 
@@ -131,31 +130,38 @@ const signup = async (req, res) => {
 
     const user = new User(userData);
 
-    // ✅ FIX: Generate AND SAVE verification token properly
-    const verificationToken = user.generateEmailVerificationToken();
-    await user.save(); // ✅ This saves the token to database
+    // ✅ TEMPORARY: Auto-verify for testing (remove when email works)
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
 
-    // Send verification email
-    sendVerificationEmail(email, verificationToken, name, role)
+    await user.save();
+
+    console.log(`✅ User ${email} created and auto-verified for testing`);
+
+    // Still try to send email (but don't block)
+    sendVerificationEmail(email, "dummy-token", name, role)
       .then(() => console.log(`✅ Verification email sent to ${email}`))
       .catch(err => console.error(`❌ Failed to send email to ${email}:`, err.message));
+
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+      ...(role === UserRole.HOST && { 
+        hostInfo: user.hostInfo 
+      })
+    };
 
     res.status(201).json({
       success: true,
       message: role === UserRole.HOST ? 
-        'Host account created successfully! Please check your email to verify your account. Your account will be activated after admin verification.' :
-        'Account created successfully! Please check your email to verify your account.',
+        'Host account created successfully! You can now login. Your account will be activated after admin verification.' :
+        'Account created successfully! You can now login.',
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-          ...(role === UserRole.HOST && { 
-            hostInfo: user.hostInfo 
-          })
-        }
+        user: userResponse
       }
     });
 
