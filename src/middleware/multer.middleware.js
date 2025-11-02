@@ -3,12 +3,13 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-// ✅ FIX: Use correct __dirname in ESM
+// ✅ FIX: Use correct path - only ONE level up to reach backend root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ FIX: Go up TWO levels to reach backend/uploads (from src/middleware/)
-const uploadDir = path.join(__dirname, "..", "..", "uploads");
+// ✅ CORRECT: Go up ONE level from middleware to src, then to uploads
+const uploadDir = path.join(__dirname, "..", "uploads");
+// Path: src/middleware → src → uploads ✅
 
 // Create directory if it doesn't exist
 if (!fs.existsSync(uploadDir)) {
@@ -32,31 +33,5 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp|avif/;
-  const ext = path.extname(file.originalname).toLowerCase();
-  const mime = file.mimetype;
-  
-  console.log("🔍 Checking file:", { originalname: file.originalname, ext, mime });
-  
-  const isValid = allowed.test(ext) && allowed.test(mime);
-  
-  if (!isValid) {
-    console.log("❌ File rejected:", file.originalname);
-    return cb(new Error("Only image files (JPEG, JPG, PNG, WEBP, AVIF) are allowed!"), false);
-  }
-  
-  console.log("✅ File accepted:", file.originalname);
-  cb(null, true);
-};
-
-export const upload = multer({
-  storage,
-  limits: { 
-    fileSize: 5 * 1024 * 1024, // 5MB
-    files: 5 // Maximum 5 files
-  },
-  fileFilter,
-});
-
-console.log("🔧 Multer configured with upload directory:", uploadDir);
+// ... keep the rest of your code the same
+export const upload = multer({ storage, limits, fileFilter });
