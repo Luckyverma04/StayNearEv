@@ -1,31 +1,47 @@
 import nodemailer from "nodemailer";
 
 const createTransporter = () => {
-  // Try multiple configurations
+  console.log('🔧 Creating email transporter...');
+  console.log('📧 Email User:', process.env.EMAIL_USER);
+  console.log('🔑 Email Password Length:', process.env.EMAIL_PASSWORD?.length);
+  console.log('🌐 CLIENT_URL:', process.env.CLIENT_URL);
+
+  // ✅ FIXED: Use service instead of host/port for Gmail
   const config = {
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // Use TLS
+    service: 'gmail', // ✅ Use service for Gmail
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
     },
-    connectionTimeout: 30000, // 30 seconds
+    connectionTimeout: 30000,
     greetingTimeout: 30000,
     socketTimeout: 60000,
-    tls: {
-      rejectUnauthorized: false // Important for Render
-    }
+    debug: true, // ✅ Enable debug
+    logger: true  // ✅ Enable logger
   };
   
-  return nodemailer.createTransport(config);
+  const transporter = nodemailer.createTransport(config);
+  
+  // Verify connection on creation
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email transporter verification failed:', error);
+    } else {
+      console.log('✅ Email transporter ready');
+    }
+  });
+  
+  return transporter;
 };
 
-// ✅ TEST FUNCTION - Add this to check email connection
+// ✅ TEST FUNCTION - Updated with better logging
 export const testEmailConnection = async () => {
   try {
-    console.log("Testing email connection...");
-    console.log("Email User:", process.env.EMAIL_USER ? "Set" : "Not Set");
+    console.log("🧪 Testing email connection...");
+    console.log("📧 Email User:", process.env.EMAIL_USER);
+    console.log("🔑 Email Password exists:", !!process.env.EMAIL_PASSWORD);
+    console.log("📨 Email From:", process.env.EMAIL_FROM);
+    console.log("🌐 Client URL:", process.env.CLIENT_URL);
     
     const transporter = createTransporter();
     
@@ -36,43 +52,69 @@ export const testEmailConnection = async () => {
     // Test email
     const testResult = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: process.env.EMAIL_USER,
-      subject: "Test Email from StayNearBy",
-      text: "This is a test email to verify SMTP configuration."
+      to: process.env.EMAIL_USER, // Send to yourself
+      subject: "📧 Test Email from StayNearBy",
+      text: "This is a test email to verify SMTP configuration.",
+      html: "<h1>Test Email</h1><p>This is a test email from StayNearBy</p>"
     });
     
-    console.log("✅ Test email sent successfully:", testResult.messageId);
+    console.log("✅ Test email sent successfully!");
+    console.log("📨 Message ID:", testResult.messageId);
+    console.log("📤 Response:", testResult.response);
+    
     return true;
   } catch (error) {
     console.error("❌ Email connection test failed:", error);
+    console.error("🔍 Error details:", {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode
+    });
     return false;
   }
 };
 
-// ✅ Add retry logic to your existing functions
+// ✅ Add retry logic
 const sendEmailWithRetry = async (mailOptions, retries = 3) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      console.log(`📤 Email attempt ${attempt}/${retries} to: ${mailOptions.to}`);
+      
       const transporter = createTransporter();
       const result = await transporter.sendMail(mailOptions);
+      
       console.log(`✅ Email sent successfully on attempt ${attempt}`);
+      console.log(`📨 Message ID: ${result.messageId}`);
+      console.log(`📤 Response: ${result.response}`);
+      
       return result;
     } catch (error) {
       console.error(`❌ Email attempt ${attempt} failed:`, error.message);
+      console.error(`🔍 Error details:`, {
+        code: error.code,
+        command: error.command,
+        response: error.response
+      });
       
       if (attempt === retries) {
         throw error;
       }
       
       // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+      console.log(`⏳ Waiting 2 seconds before retry...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 };
 
 export const sendVerificationEmail = async (email, verificationToken, name, role) => {
   try {
+    console.log(`📧 Preparing verification email for: ${email}`);
+    
     const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${verificationToken}`;
+    console.log(`🔗 Verification URL: ${verificationUrl}`);
+    
     const roleMessage = role === "host" 
       ? "<p><strong>Host Account:</strong> Your account will be activated after admin verification.</p>" 
       : "";
@@ -99,24 +141,33 @@ export const sendVerificationEmail = async (email, verificationToken, name, role
             ${verificationUrl}
           </p>
           <p>This link will expire in 24 hours.</p>
+          <hr style="margin: 30px 0;">
+          <p style="color: #666; font-size: 12px;">
+            If you didn't create this account, please ignore this email.
+          </p>
         </div>
-      `
+      `,
+      text: `Welcome to StayNearBy, ${name}!\n\nPlease verify your email by visiting: ${verificationUrl}\n\nThis link expires in 24 hours.`
     };
 
     // Use retry logic
-    await sendEmailWithRetry(mailOptions);
-    console.log(`✅ Verification email sent to ${email}`);
+    const result = await sendEmailWithRetry(mailOptions);
+    console.log(`✅ Verification email sent successfully to ${email}`);
+    console.log(`📨 Message ID: ${result.messageId}`);
+    
+    return result;
     
   } catch (error) {
     console.error("❌ Error sending verification email:", error);
+    console.error("🔍 Full error:", error);
     
     // Don't throw error - let user register even if email fails
-    // You can implement a fallback method here
     console.log("⚠️ Email sending failed, but user registration completed");
+    return null;
   }
 };
 
-// Keep other functions same but use sendEmailWithRetry
+// Keep other functions the same but ensure they use the fixed createTransporter
 export const sendWelcomeEmail = async (email, name, role) => {
   try {
     const roleSpecificMessage = role === "host"

@@ -82,7 +82,6 @@ const resetAdminPassword = async (req, res) => {
   }
 };
 
-
 const signup = async (req, res) => {
   try {
     const { name, email, password, role = UserRole.CUSTOMER, hostInfo } = req.body;
@@ -112,7 +111,7 @@ const signup = async (req, res) => {
       });
     }
 
-    // Create new user (ORIGINAL CODE - no auto-verification)
+    // Create new user
     const userData = {
       name,
       email,
@@ -126,18 +125,17 @@ const signup = async (req, res) => {
         phone: hostInfo.phone,
         address: hostInfo.address,
         idProof: hostInfo.idProof || '',
-        isVerified: false // Hosts need admin verification
+        isVerified: false
       };
     }
 
     const user = new User(userData);
 
-    // Generate email verification token (ORIGINAL CODE)
+    // ✅ FIX: Generate AND SAVE verification token properly
     const verificationToken = user.generateEmailVerificationToken();
-    await user.save();
+    await user.save(); // ✅ This saves the token to database
 
-    // ✅ YEH PART CHANGE KARO - NAYA EMAIL SEND METHOD
-    // Send verification email (but don't block registration if it fails)
+    // Send verification email
     sendVerificationEmail(email, verificationToken, name, role)
       .then(() => console.log(`✅ Verification email sent to ${email}`))
       .catch(err => console.error(`❌ Failed to send email to ${email}:`, err.message));
@@ -170,6 +168,7 @@ const signup = async (req, res) => {
     });
   }
 };
+
 // Keep all other functions the same as your original code
 const login = async (req, res) => {
   try {
