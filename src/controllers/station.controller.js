@@ -9,26 +9,40 @@ export const createStation = async (req, res) => {
   try {
     const { name, location, description, pricePerUnit, amenities, chargerTypes } = req.body;
     
+    console.log('📝 Creating station with data:', { name, location, pricePerUnit });
+    console.log('📁 Files received:', req.files ? req.files.length : 0);
+    
     let imageUrls = [];
     
     // Upload images to Cloudinary
     if (req.files && req.files.length > 0) {
-      console.log(`📤 Uploading ${req.files.length} images to Cloudinary...`);
+      console.log(`📤 Starting Cloudinary upload for ${req.files.length} images...`);
       
-      const uploadPromises = req.files.map(async (file) => {
-        try {
+      try {
+        const uploadPromises = req.files.map(async (file, index) => {
+          console.log(`🖼️ Uploading image ${index + 1}:`, {
+            originalname: file.originalname,
+            size: file.size,
+            mimetype: file.mimetype
+          });
+          
           const result = await uploadToCloudinary(file.buffer);
-          console.log('✅ Image uploaded to Cloudinary:', result.secure_url);
-          return result.secure_url; // Cloudinary URL
-        } catch (error) {
-          console.error('❌ Error uploading to Cloudinary:', error);
-          throw new Error('Failed to upload image to Cloudinary');
-        }
-      });
-      
-      imageUrls = await Promise.all(uploadPromises);
+          console.log(`✅ Image ${index + 1} uploaded:`, result.secure_url);
+          return result.secure_url;
+        });
+        
+        imageUrls = await Promise.all(uploadPromises);
+        console.log('🎉 All images uploaded successfully:', imageUrls);
+      } catch (uploadError) {
+        console.error('❌ Image upload failed:', uploadError);
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`
+        });
+      }
     }
     
+    // Create station
     const station = new Station({
       name,
       location,
@@ -36,14 +50,14 @@ export const createStation = async (req, res) => {
       pricePerUnit,
       amenities: amenities ? JSON.parse(amenities) : [],
       chargerTypes: chargerTypes ? JSON.parse(chargerTypes) : [],
-      images: imageUrls, // Store Cloudinary URLs
+      images: imageUrls,
       host: req.user.id,
     });
     
     await station.save();
-    
-    // Populate host details
     await station.populate('host', 'name email');
+    
+    console.log('✅ Station created successfully:', station._id);
     
     res.status(201).json({
       success: true,

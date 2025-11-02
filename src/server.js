@@ -31,6 +31,32 @@ app.use(
     credentials: true,
   })
 );
+app.get('/api/test-cloudinary', async (req, res) => {
+  try {
+    const cloudinary = require('cloudinary').v2;
+    
+    // Test configuration
+    const config = cloudinary.config();
+    console.log('🔧 Cloudinary Config:', {
+      cloud_name: config.cloud_name,
+      api_key: config.api_key ? '✅ Set' : '❌ Missing',
+      api_secret: config.api_secret ? '✅ Set' : '❌ Missing'
+    });
+    
+    res.json({
+      success: true,
+      cloud_name: config.cloud_name,
+      api_key_set: !!config.api_key,
+      api_secret_set: !!config.api_secret
+    });
+  } catch (error) {
+    console.error('❌ Cloudinary test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 app.options("*", cors());
 app.use(express.json());
