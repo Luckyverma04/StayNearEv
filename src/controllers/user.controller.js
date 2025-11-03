@@ -87,40 +87,39 @@ const signup = async (req, res) => {
     // 1️⃣ Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User already exists with this email" });
+      return res.json({
+        success: false,
+        message: "User already exists with this email",
+      });
     }
 
-    // 2️⃣ Create new user (unverified)
+    // 2️⃣ Create new user (auto verified)
     const newUser = await User.create({
       name,
       email,
       password,
       role,
-      isEmailVerified: false,
+      isEmailVerified: true, // ✅ directly mark as verified
     });
 
-    // 3️⃣ Generate unique verification token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto.createHash("sha256").update(verificationToken).digest("hex");
-
-    newUser.emailVerificationToken = hashedToken;
-    newUser.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    await newUser.save();
-
-    // 4️⃣ Send verification email
+    // 3️⃣ Send Welcome Email instead of Verification Email
     try {
-      await sendVerificationEmail(email, verificationToken, name, role);
-      console.log("✅ Verification email sent successfully to:", email);
+      await sendWelcomeEmail(email, name, role);
+      console.log(`✅ Welcome email sent to: ${email}`);
     } catch (err) {
-      console.error("❌ Failed to send verification email:", err);
+      console.error("❌ Failed to send welcome email:", err);
     }
 
-    // 5️⃣ Response to frontend
+    // 4️⃣ Return success response
     res.status(201).json({
       success: true,
-      message: "User registered successfully. Please check your email to verify your account.",
+      message: "User registered successfully! Welcome email sent.",
+      user: {
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        isEmailVerified: newUser.isEmailVerified,
+      },
     });
   } catch (error) {
     console.error("❌ Signup error:", error);
@@ -130,6 +129,7 @@ const signup = async (req, res) => {
     });
   }
 };
+
 
 
 // Keep all other functions the same as your original code
