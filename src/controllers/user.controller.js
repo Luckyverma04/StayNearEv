@@ -80,7 +80,7 @@ const resetAdminPassword = async (req, res) => {
     });
   }
 };
-export const signup = async (req, res) => {
+const signup = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
