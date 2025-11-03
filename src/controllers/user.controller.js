@@ -80,100 +80,57 @@ const resetAdminPassword = async (req, res) => {
     });
   }
 };
-
-const signup = async (req, res) => {
+export const signup = async (req, res) => {
   try {
-    const { name, email, password, role = UserRole.CUSTOMER, hostInfo } = req.body;
+    const { name, email, password, role } = req.body;
 
-    // Prevent admin registration through signup
-    if (role === UserRole.ADMIN) {
-      return res.status(403).json({
-        success: false,
-        message: 'Admin registration is not allowed'
-      });
-    }
-
-    // Check if user already exists
+    // 1️⃣ Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email'
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists with this email" });
     }
 
-    // Validate host registration
-    if (role === UserRole.HOST && (!hostInfo || !hostInfo.phone || !hostInfo.address)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Phone and address are required for host registration'
-      });
-    }
-
-    // Create new user
-    const userData = {
+    // 2️⃣ Create new user (unverified)
+    const newUser = await User.create({
       name,
       email,
       password,
-      role
-    };
-
-    // Add host info if role is host
-    if (role === UserRole.HOST) {
-      userData.hostInfo = {
-        phone: hostInfo.phone,
-        address: hostInfo.address,
-        idProof: hostInfo.idProof || '',
-        isVerified: false
-      };
-    }
-
-    const user = new User(userData);
-
-    // ✅ TEMPORARY: Auto-verify for testing (remove when email works)
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-
-    await user.save();
-
-    console.log(`✅ User ${email} created and auto-verified for testing`);
-
-    // Still try to send email (but don't block)
-    sendVerificationEmail(email, "dummy-token", name, role)
-      .then(() => console.log(`✅ Verification email sent to ${email}`))
-      .catch(err => console.error(`❌ Failed to send email to ${email}:`, err.message));
-
-    const userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isEmailVerified: user.isEmailVerified,
-      ...(role === UserRole.HOST && { 
-        hostInfo: user.hostInfo 
-      })
-    };
-
-    res.status(201).json({
-      success: true,
-      message: role === UserRole.HOST ? 
-        'Host account created successfully! You can now login. Your account will be activated after admin verification.' :
-        'Account created successfully! You can now login.',
-      data: {
-        user: userResponse
-      }
+      role,
+      isEmailVerified: false,
     });
 
+    // 3️⃣ Generate unique verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(verificationToken).digest("hex");
+
+    newUser.emailVerificationToken = hashedToken;
+    newUser.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    await newUser.save();
+
+    // 4️⃣ Send verification email
+    try {
+      await sendVerificationEmail(email, verificationToken, name, role);
+      console.log("✅ Verification email sent successfully to:", email);
+    } catch (err) {
+      console.error("❌ Failed to send verification email:", err);
+    }
+
+    // 5️⃣ Response to frontend
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully. Please check your email to verify your account.",
+    });
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error("❌ Signup error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: "Server error during signup.",
     });
   }
 };
+
 
 // Keep all other functions the same as your original code
 const login = async (req, res) => {
