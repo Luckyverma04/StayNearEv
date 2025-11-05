@@ -109,6 +109,39 @@ export const createBooking = async (req, res) => {
     });
   }
 };
+export const getAllBookings = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+
+    const bookings = await Booking.find(query)
+      .populate('user', 'name email')
+      .populate('station', 'name location host pricePerUnit')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Booking.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: bookings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalBookings: total,
+      },
+    });
+  } catch (error) {
+    console.error("Get all bookings (admin) error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 
 // ✅ Get available time slots for a station
 export const getAvailableSlots = async (req, res) => {

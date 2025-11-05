@@ -8,8 +8,9 @@ import {
   updateBookingStatus,
   getStationBookings,
   addReview,
+  getAllBookings
 } from "../controllers/booking.controller.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
+import { authMiddleware,authorize } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.put("/:id/review", addReview);
 // Host routes
 router.put("/:id/status", updateBookingStatus);
 router.get("/host/my-station-bookings", getStationBookings);
+router.get("/admin/all", authorize("admin"), getAllBookings);
 
 export default router;
