@@ -12,6 +12,7 @@ import {
   createAdmin,
   resetAdminPassword,
   manualVerifyEmail,
+  
 } from "../controllers/user.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -29,7 +30,6 @@ router.put("/verify-host/:hostId", authMiddleware, verifyHost);
 router.delete("/me", authMiddleware, deleteMyAccount);
 router.delete("/delete/:id", authMiddleware, deleteUser);
 router.post("/manual-verify", manualVerifyEmail);
-
 // Email test route
 router.get("/test-email", async (req, res) => {
   try {

@@ -27,6 +27,6 @@ router.put("/:id/review", addReview);
 // Host routes
 router.put("/:id/status", updateBookingStatus);
 router.get("/host/my-station-bookings", getStationBookings);
-router.get("/admin/all", authorize("admin"), getAllBookings);
+router.get("/admin/bookings", authMiddleware, getAllBookings);
 
 export default router;
