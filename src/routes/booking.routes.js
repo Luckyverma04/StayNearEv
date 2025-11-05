@@ -8,7 +8,8 @@ import {
   updateBookingStatus,
   getStationBookings,
   addReview,
-  getAllBookings
+  getAllBookings,
+  autoUpdateExpiredBookings
 } from "../controllers/booking.controller.js";
 import { authMiddleware,authorize } from "../middleware/auth.middleware.js";
 
@@ -29,4 +30,5 @@ router.put("/:id/status", updateBookingStatus);
 router.get("/host/my-station-bookings", getStationBookings);
 router.get("/admin/bookings", authMiddleware, getAllBookings);
 
+router.get("/auto-update", autoUpdateExpiredBookings);
 export default router;

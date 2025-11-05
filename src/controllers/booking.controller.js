@@ -109,9 +109,41 @@ export const createBooking = async (req, res) => {
     });
   }
 };
+// ✅ AUTO-UPDATE EXPIRED BOOKINGS (Admin/System function)
+export const autoUpdateExpiredBookings = async (req, res) => {
+  try {
+    const result = await Booking.autoUpdateExpiredBookings();
+    const activateResult = await Booking.autoActivateOngoingBookings();
+    
+    res.json({
+      success: true,
+      message: 'Auto-update completed successfully',
+      data: {
+        completed: result.modifiedCount,
+        activated: activateResult.modifiedCount,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Auto-update bookings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// ✅ GET BOOKINGS WITH AUTO-UPDATE (Modified getAllBookings)
 export const getAllBookings = async (req, res) => {
   try {
+    const user = req.user;
     const { page = 1, limit = 10, status } = req.query;
+
+    // ✅ AUTO-UPDATE before fetching (only for admin)
+    if (user.role === 'admin') {
+      await Booking.autoUpdateExpiredBookings();
+      await Booking.autoActivateOngoingBookings();
+    }
 
     const query = {};
     if (status) query.status = status;
