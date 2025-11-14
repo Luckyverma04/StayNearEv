@@ -15,7 +15,7 @@ import {
   
 } from "../controllers/user.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-
+import { testResend } from "../utils/resendService.utils.js";
 const router = express.Router();
 
 // Public routes
@@ -31,6 +31,10 @@ router.delete("/me", authMiddleware, deleteMyAccount);
 router.delete("/delete/:id", authMiddleware, deleteUser);
 router.post("/manual-verify", manualVerifyEmail);
 // Email test route
+router.get("/test-email", async (req, res) => {
+  const result = await testResend();
+  res.json(result);
+});
 router.get("/test-email", async (req, res) => {
   try {
     console.log("🧪 Starting email test...");
