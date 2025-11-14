@@ -20,7 +20,7 @@ const sendEmail = async (to, subject, html) => {
   return transporter.sendMail(mailOptions);
 };
 
-/** 1️⃣ Send verification email */
+/** 1️⃣ Verification email */
 export const sendVerificationEmail = async (email, name, token) => {
   const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
@@ -30,38 +30,55 @@ export const sendVerificationEmail = async (email, name, token) => {
     <a href="${verificationLink}">Verify Email</a>
   `;
 
-  await sendEmail(email, "Verify your StayNearBy account", html);
+  return sendEmail(email, "Verify your StayNearBy account", html);
 };
 
-/** 2️⃣ Send welcome email */
+/** 2️⃣ Welcome email */
 export const sendWelcomeEmail = async (email, name, role) => {
   const html = `
     <h2>Welcome ${name}! 🎉</h2>
     <p>Your account has been successfully created.</p>
     <p>Role: <strong>${role}</strong></p>
-    <p>You can now login to StayNearBy.</p>
   `;
 
-  await sendEmail(email, "Welcome to StayNearBy", html);
+  return sendEmail(email, "Welcome to StayNearBy", html);
 };
 
-/** 3️⃣ Send Host Approval Email */
+/** 3️⃣ Host Approval Email */
 export const sendHostApprovalEmail = async (email, name) => {
   const html = `
     <h2>Hello ${name},</h2>
-    <p>Your <strong>Host Account</strong> has been approved by admin!</p>
-    <p>You can now start adding properties and accepting bookings.</p>
+    <p>Your Host account has been approved by admin!</p>
   `;
 
-  await sendEmail(email, "Your Host Account is Approved 🎉", html);
+  return sendEmail(email, "Your Host Account is Approved 🎉", html);
 };
 
-/** 4️⃣ Test email connection */
+/** 4️⃣ FULL working test function */
 export const testEmailConnection = async () => {
   try {
+    console.log("🔍 Verifying Gmail SMTP...");
     await transporter.verify();
-    console.log("📧 Gmail SMTP Connection Successful!");
+
+    console.log("📧 SMTP Verified! Sending test email...");
+
+    const info = await sendEmail(
+      process.env.EMAIL_USER,
+      "StayNearBy — Email Test Successful 🎉",
+      "<h2>This is a test email from StayNearBy backend.</h2>"
+    );
+
+    return {
+      success: true,
+      config: transporter.options,
+      messageId: info.messageId,
+    };
+
   } catch (err) {
-    console.error("❌ Gmail SMTP Error:", err);
+    console.error("❌ Email error:", err);
+    return {
+      success: false,
+      error: err.message,
+    };
   }
 };
