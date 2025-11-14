@@ -1,5 +1,4 @@
 import express from "express";
-import { testEmailConnection } from "../utils/gmailService.utils.js"; // ✅ FIXED IMPORT
 import {
   signup,
   login,
@@ -12,10 +11,11 @@ import {
   createAdmin,
   resetAdminPassword,
   manualVerifyEmail,
-  
 } from "../controllers/user.controller.js";
+
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { testResend } from "../utils/resendService.utils.js";
+
 const router = express.Router();
 
 // Public routes
@@ -30,35 +30,24 @@ router.put("/verify-host/:hostId", authMiddleware, verifyHost);
 router.delete("/me", authMiddleware, deleteMyAccount);
 router.delete("/delete/:id", authMiddleware, deleteUser);
 router.post("/manual-verify", manualVerifyEmail);
-// Email test route
-router.get("/test-email", async (req, res) => {
-  const result = await testResend();
-  res.json(result);
-});
+
+// Email test route (CORRECTED)
 router.get("/test-email", async (req, res) => {
   try {
     console.log("🧪 Starting email test...");
-    const result = await testEmailConnection();
-    
-    if (result.success) {
-      res.json({ 
-        success: true, 
-        message: "✅ Email test completed successfully! Check your Gmail inbox and server logs for details.",
-        config: result.config,
-        messageId: result.messageId
-      });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: "❌ Email test failed. Check server logs for error details.",
-        error: result.error
-      });
-    }
+
+    const result = await testResend(); // ✅ Correct function
+
+    res.json({
+      success: true,
+      message: "✅ Email test triggered! Check your Gmail inbox.",
+      result,
+    });
   } catch (error) {
     console.error("❌ Email test route error:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 });
