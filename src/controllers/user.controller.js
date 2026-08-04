@@ -118,7 +118,9 @@ const login = async (req, res) => {
     if (!user)
       return res.status(401).json({ success: false, message: "Invalid login" });
 
-    const isValid = await user.comparePassword(password);
+const isValid = user.password
+  ? await user.comparePassword(password)
+  : false;
     if (!isValid)
       return res.status(401).json({ success: false, message: "Invalid login" });
 
@@ -128,12 +130,16 @@ const login = async (req, res) => {
         message: "Please verify your email before log in",
       });
 
-    if (user.role === UserRole.HOST && !user.hostInfo.isVerified) {
-      return res.status(401).json({
-        success: false,
-        message: "Your host account is pending admin approval",
-      });
-    }
+    if (
+  user.role === UserRole.HOST &&
+  (!user.hostInfo || !user.hostInfo.isVerified)
+) {
+  return res.status(401).json({
+    success: false,
+    message: "Your host account is pending admin approval",
+  });
+}
+
 
     const token = generateToken({
       userId: user._id,
@@ -265,8 +271,12 @@ const verifyHost = async (req, res) => {
     if (!host)
       return res.status(404).json({ success: false, message: "Host not found" });
 
-    host.hostInfo.isVerified = true;
-    host.isEmailVerified = true;
+    if (!host.hostInfo) {
+  host.hostInfo = {};
+}
+host.hostInfo.isVerified = true;
+host.isEmailVerified = true;
+
 
     await host.save();
 
