@@ -18,7 +18,7 @@ const stationSchema = new mongoose.Schema(
     pricePerUnit: { type: Number, required: [true, "Price per unit is required"] },
     amenities: { type: [String], default: [] },
     images: { type: [String], default: [] },
-    host: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     reviews: { type: [reviewSchema], default: [] },
     averageRating: { type: Number, default: 0 },
     chargerTypes: [{

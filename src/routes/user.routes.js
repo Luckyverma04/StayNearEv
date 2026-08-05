@@ -2,41 +2,63 @@ import express from "express";
 import {
   signup,
   login,
-  verifyEmail,
+  verifyOtp,
+  resendOtp,
   getProfile,
-  verifyHost,
-  getAllHosts,
+  getPendingUsers,
+  verifyUserByAdmin,
+  getAllUsers,
   deleteUser,
   deleteMyAccount,
   createAdmin,
-  resetAdminPassword,
-  manualVerifyEmail,
 } from "../controllers/user.controller.js";
 
-import { authMiddleware } from "../middleware/auth.middleware.js";
+import { authMiddleware, authorize } from "../middleware/auth.middleware.js";
+import { UserRole } from "../models/user.model.js";
 import { testResend } from "../utils/resendService.utils.js";
 
 const router = express.Router();
 
-// Public routes
+// ---------------- Public routes ----------------
 router.post("/signup", signup);
 router.post("/login", login);
-router.post("/verify-email", verifyEmail);
+router.post("/verify-otp", verifyOtp);
+router.post("/resend-otp", resendOtp);
 
-// Protected routes
+// ---------------- Setup route ----------------
+router.post("/create-admin", createAdmin);
+
+// ---------------- Protected (any logged in user) ----------------
 router.get("/profile", authMiddleware, getProfile);
-router.get("/hosts", authMiddleware, getAllHosts);
-router.put("/verify-host/:hostId", authMiddleware, verifyHost);
 router.delete("/me", authMiddleware, deleteMyAccount);
-router.delete("/delete/:id", authMiddleware, deleteUser);
-router.post("/manual-verify", manualVerifyEmail);
 
-// Email test route (CORRECTED)
+// ---------------- Admin only ----------------
+router.get(
+  "/pending",
+  authMiddleware,
+  authorize(UserRole.ADMIN),
+  getPendingUsers
+);
+router.patch(
+  "/verify/:id",
+  authMiddleware,
+  authorize(UserRole.ADMIN),
+  verifyUserByAdmin
+);
+router.get("/all", authMiddleware, authorize(UserRole.ADMIN), getAllUsers);
+router.delete(
+  "/delete/:id",
+  authMiddleware,
+  authorize(UserRole.ADMIN),
+  deleteUser
+);
+
+// ---------------- Email test route ----------------
 router.get("/test-email", async (req, res) => {
   try {
     console.log("🧪 Starting email test...");
 
-    const result = await testResend(); // ✅ Correct function
+    const result = await testResend();
 
     res.json({
       success: true,

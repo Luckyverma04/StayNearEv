@@ -15,15 +15,19 @@ import { upload } from "../middleware/multer.middleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, upload.array("images", 5), createStation);
+// ---- Public ----
 router.get("/", getAllStations);
 router.get("/:id", getStationById);
+router.get("/:id/reviews", getStationReviews);
+
+// ---- Koi bhi logged-in user station bana sakta hai ----
+// Edit/delete ka check controller me hai: sirf owner ya admin
+router.post("/", authMiddleware, upload.array("images", 5), createStation);
 router.put("/:id", authMiddleware, upload.array("images", 5), updateStation);
 router.delete("/:id", authMiddleware, deleteStation);
 
-// Reviews
+// ---- Reviews ----
 router.post("/:id/reviews", authMiddleware, addReview);
-router.get("/:id/reviews", getStationReviews);
 router.put("/:id/reviews/:reviewId", authMiddleware, updateReview);
 router.delete("/:id/reviews/:reviewId", authMiddleware, deleteReview);
 

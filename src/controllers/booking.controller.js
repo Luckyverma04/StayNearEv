@@ -13,7 +13,6 @@ export const createBooking = async (req, res) => {
       vehicleInfo
     } = req.body;
 
-    // ✅ FIXED: Use req.user.userId (from your auth middleware)
     const userId = req.user.userId;
 
     console.log('🔍 User ID from auth:', userId);
@@ -35,18 +34,20 @@ export const createBooking = async (req, res) => {
       });
     }
 
+    // ⛔ Apna khud ka station book nahi kar sakte
+    if (station.createdBy && station.createdBy.toString() === userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot book your own station'
+      });
+    }
+
     const startDateTime = new Date(startTime);
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
     // Time validation with buffer
     const now = new Date();
     const bufferTime = 30 * 60 * 1000; // 30 minutes buffer
-    
-    console.log('🔍 Debug Time Check:');
-    console.log('Current Time:', now);
-    console.log('Booking Start Time:', startDateTime);
-    console.log('Time Difference (ms):', startDateTime - now);
-    console.log('Buffer Time:', bufferTime);
 
     // Allow booking if start time is at least 30 minutes from now
     if (startDateTime < (now.getTime() + bufferTime)) {
@@ -81,7 +82,7 @@ export const createBooking = async (req, res) => {
 
     // Create booking
     const booking = new Booking({
-      user: userId, // ✅ Now using userId from auth middleware
+      user: userId,
       station: stationId,
       startTime: startDateTime,
       endTime: endDateTime,
@@ -92,7 +93,6 @@ export const createBooking = async (req, res) => {
 
     await booking.save();
 
-    // Populate booking details for response
     await booking.populate('station', 'name location pricePerUnit amenities');
 
     res.status(201).json({
@@ -109,12 +109,13 @@ export const createBooking = async (req, res) => {
     });
   }
 };
+
 // ✅ AUTO-UPDATE EXPIRED BOOKINGS (Admin/System function)
 export const autoUpdateExpiredBookings = async (req, res) => {
   try {
     const result = await Booking.autoUpdateExpiredBookings();
     const activateResult = await Booking.autoActivateOngoingBookings();
-    
+
     res.json({
       success: true,
       message: 'Auto-update completed successfully',
@@ -133,7 +134,7 @@ export const autoUpdateExpiredBookings = async (req, res) => {
   }
 };
 
-// ✅ GET BOOKINGS WITH AUTO-UPDATE (Modified getAllBookings)
+// ✅ GET ALL BOOKINGS (admin)
 export const getAllBookings = async (req, res) => {
   try {
     const user = req.user;
@@ -150,7 +151,7 @@ export const getAllBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate('user', 'name email')
-      .populate('station', 'name location host pricePerUnit')
+      .populate('station', 'name location createdBy pricePerUnit')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -209,41 +210,39 @@ export const getAvailableSlots = async (req, res) => {
     // Generate available time slots (8 AM to 10 PM)
     const availableSlots = [];
     const timeSlots = [];
-    
+
     for (let hour = 8; hour < 22; hour++) {
       for (let minute = 0; minute < 60; minute += 30) { // 30-minute intervals
         const slotTime = new Date(selectedDate);
         slotTime.setHours(hour, minute, 0, 0);
-        
+
         // Skip if slot time is before current time for today
-        if (selectedDate.toDateString() === new Date().toDateString() && 
+        if (selectedDate.toDateString() === new Date().toDateString() &&
             slotTime < new Date()) {
           continue;
         }
-        
+
         timeSlots.push(slotTime);
       }
     }
 
-    // ✅ ADDED: 1-hour buffer between bookings
+    // ✅ 1-hour buffer between bookings
     const bufferTime = 60 * 60 * 1000; // 1 hour in milliseconds
 
     // Check availability for each time slot
     for (const slotTime of timeSlots) {
       const slotEndTime = new Date(slotTime.getTime() + duration * 60000);
-      
-      // ✅ MODIFIED: Check for conflicts with 1-hour buffer
+
       const isConflict = existingBookings.some(booking => {
         const bookingStartWithBuffer = new Date(booking.startTime.getTime() - bufferTime);
         const bookingEndWithBuffer = new Date(booking.endTime.getTime() + bufferTime);
-        
+
         return (
           (slotTime < bookingEndWithBuffer && slotEndTime > bookingStartWithBuffer)
         );
       });
 
       if (!isConflict && slotEndTime <= new Date(selectedDate.setHours(22, 0, 0, 0))) {
-        // Calculate estimated cost
         const estimatedEnergy = (7 * duration) / 60;
         const estimatedCost = estimatedEnergy * station.pricePerUnit;
 
@@ -282,7 +281,6 @@ export const getAvailableSlots = async (req, res) => {
 // ✅ Get user's bookings
 export const getUserBookings = async (req, res) => {
   try {
-    // ✅ FIXED: Use req.user.userId
     const userId = req.user.userId;
     const { page = 1, limit = 10, status } = req.query;
 
@@ -316,12 +314,12 @@ export const getUserBookings = async (req, res) => {
   }
 };
 
-// ✅ Get booking by ID
+// ✅ Get booking by ID  — apni booking ya admin
 export const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
       .populate('user', 'name email')
-      .populate('station', 'name location host pricePerUnit amenities');
+      .populate('station', 'name location createdBy pricePerUnit amenities');
 
     if (!booking) {
       return res.status(404).json({
@@ -330,10 +328,10 @@ export const getBookingById = async (req, res) => {
       });
     }
 
-    // ✅ FIXED: Use req.user.userId for comparison
-    if (booking.user._id.toString() !== req.user.userId && 
-        req.user.role !== 'admin' && 
-        booking.station.host.toString() !== req.user.userId) {
+    const isOwner = booking.user._id.toString() === req.user.userId;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this booking'
@@ -359,7 +357,6 @@ export const cancelBooking = async (req, res) => {
   try {
     const { cancellationReason } = req.body;
     const bookingId = req.params.id;
-    // ✅ FIXED: Use req.user.userId
     const userId = req.user.userId;
 
     const booking = await Booking.findOne({
@@ -411,7 +408,55 @@ export const cancelBooking = async (req, res) => {
   }
 };
 
-// ✅ Update booking status (for hosts/admin)
+// ✅ Get bookings for MY stations (jo maine banaye hain)
+export const getMyStationBookings = async (req, res) => {
+  try {
+    const ownerId = req.user.userId;
+    const { page = 1, limit = 10, status } = req.query;
+
+    // Meri banayi hui stations
+    const stations = await Station.find({ createdBy: ownerId }).select('_id');
+    const stationIds = stations.map((s) => s._id);
+
+    if (stationIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: { currentPage: 1, totalPages: 0, totalBookings: 0 },
+      });
+    }
+
+    const query = { station: { $in: stationIds } };
+    if (status) query.status = status;
+
+    const bookings = await Booking.find(query)
+      .populate('user', 'name email')
+      .populate('station', 'name location pricePerUnit')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Booking.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: bookings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalBookings: total,
+      },
+    });
+  } catch (error) {
+    console.error('Get my station bookings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// ✅ Update booking status (station owner ya admin)
 export const updateBookingStatus = async (req, res) => {
   try {
     const { status, energyConsumed, notes } = req.body;
@@ -426,8 +471,11 @@ export const updateBookingStatus = async (req, res) => {
       });
     }
 
-    // ✅ FIXED: Use req.user.userId for comparison
-    if (booking.station.host.toString() !== req.user.userId && req.user.role !== 'admin') {
+    const isAdmin = req.user.role === 'admin';
+    const isStationOwner =
+      booking.station?.createdBy?.toString() === req.user.userId;
+
+    if (!isAdmin && !isStationOwner) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this booking'
@@ -450,17 +498,17 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     booking.status = status;
-    
+
     // Update final cost if energy consumed is provided
     if (energyConsumed) {
       booking.energyConsumed = energyConsumed;
       booking.finalCost = energyConsumed * booking.station.pricePerUnit;
     }
-    
+
     if (notes) booking.notes = notes;
-    
+
     if (status === 'cancelled') {
-      booking.cancelledBy = 'host';
+      booking.cancelledBy = isAdmin ? 'admin' : 'owner';
     }
 
     await booking.save();
@@ -480,54 +528,11 @@ export const updateBookingStatus = async (req, res) => {
   }
 };
 
-// ✅ Get station bookings (for hosts)
-export const getStationBookings = async (req, res) => {
-  try {
-    // ✅ FIXED: Use req.user.userId
-    const hostId = req.user.userId;
-    const { page = 1, limit = 10, status } = req.query;
-
-    // Find stations owned by this host
-    const stations = await Station.find({ host: hostId }).select('_id');
-    const stationIds = stations.map(station => station._id);
-
-    const query = { station: { $in: stationIds } };
-    if (status) query.status = status;
-
-    const bookings = await Booking.find(query)
-      .populate('user', 'name email')
-      .populate('station', 'name location')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Booking.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: bookings,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(total / limit),
-        totalBookings: total
-      }
-    });
-
-  } catch (error) {
-    console.error('Get station bookings error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-};
-
 // ✅ Add review to booking
 export const addReview = async (req, res) => {
   try {
     const { rating, review } = req.body;
     const bookingId = req.params.id;
-    // ✅ FIXED: Use req.user.userId
     const userId = req.user.userId;
 
     const booking = await Booking.findOne({

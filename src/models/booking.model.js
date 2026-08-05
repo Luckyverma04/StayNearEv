@@ -38,7 +38,7 @@ const bookingSchema = new mongoose.Schema(
       vehicleType: {
         type: String,
         enum: [
-          'car', 'bike', 'scooter', 
+          'car', 'bike', 'scooter',
           'Electric Car', 'Electric Bike', 'Electric Scooter', 'Electric Auto'
         ],
         required: true
@@ -78,7 +78,8 @@ const bookingSchema = new mongoose.Schema(
     cancellationReason: String,
     cancelledBy: {
       type: String,
-      enum: ['user', 'host', 'system']
+      // 'owner' = jisne station banaya, 'user' = jisne booking ki
+      enum: ['user', 'owner', 'admin', 'system']
     }
   },
   {
@@ -89,26 +90,26 @@ const bookingSchema = new mongoose.Schema(
 // ✅ AUTOMATIC STATUS UPDATE MIDDLEWARE
 bookingSchema.pre('save', function(next) {
   const now = new Date();
-  
+
   // Agar booking end time over ho gayi hai aur status completed nahi hai
   if (this.endTime < now && this.status !== 'completed' && this.status !== 'cancelled' && this.status !== 'no-show') {
     this.status = 'completed';
     console.log(`✅ Auto-completed booking ${this._id} - End time passed`);
   }
-  
+
   // Agar booking start time ho gayi hai aur status confirmed hai
   if (this.startTime <= now && this.status === 'confirmed') {
     this.status = 'active';
     console.log(`✅ Auto-activated booking ${this._id} - Start time reached`);
   }
-  
+
   next();
 });
 
 // ✅ STATIC METHOD: Auto-update all expired bookings
 bookingSchema.statics.autoUpdateExpiredBookings = async function() {
   const now = new Date();
-  
+
   const result = await this.updateMany(
     {
       endTime: { $lt: now },
@@ -118,18 +119,18 @@ bookingSchema.statics.autoUpdateExpiredBookings = async function() {
       $set: { status: 'completed' }
     }
   );
-  
+
   if (result.modifiedCount > 0) {
     console.log(`✅ Auto-updated ${result.modifiedCount} expired bookings to completed`);
   }
-  
+
   return result;
 };
 
 // ✅ STATIC METHOD: Auto-activate ongoing bookings
 bookingSchema.statics.autoActivateOngoingBookings = async function() {
   const now = new Date();
-  
+
   const result = await this.updateMany(
     {
       startTime: { $lte: now },
@@ -140,11 +141,11 @@ bookingSchema.statics.autoActivateOngoingBookings = async function() {
       $set: { status: 'active' }
     }
   );
-  
+
   if (result.modifiedCount > 0) {
     console.log(`✅ Auto-activated ${result.modifiedCount} ongoing bookings`);
   }
-  
+
   return result;
 };
 

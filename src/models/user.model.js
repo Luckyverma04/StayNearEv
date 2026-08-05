@@ -4,7 +4,6 @@ import crypto from "crypto";
 
 export const UserRole = {
   CUSTOMER: "customer",
-  HOST: "host",
   ADMIN: "admin",
 };
 
@@ -37,18 +36,24 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // Host specific fields
-    hostInfo: {
-      phone: String,
-      address: String,
-      idProof: String,
-      isVerified: {
-        type: Boolean,
-        default: false,
-      },
+
+    // ---- OTP based email verification ----
+    emailOtp: {
+      type: String,
+      select: false, // hashed OTP, kabhi client ko na jaye
     },
-    emailVerificationToken: String,
-    emailVerificationExpires: Date,
+    emailOtpExpires: Date,
+    otpAttempts: {
+      type: Number,
+      default: 0,
+    },
+    otpLastSentAt: Date,
+
+    // Admin ne manually verify kiya ho to yaha record rahega
+    verifiedByAdmin: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -71,18 +76,37 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// ✉️ Generate email verification token
-userSchema.methods.generateEmailVerificationToken = function () {
-  const verificationToken = crypto.randomBytes(32).toString("hex");
+// 🔢 Generate 6 digit OTP — plain OTP return hota hai (mail me bhejne ke liye),
+//    database me sirf hash save hota hai
+userSchema.methods.generateEmailOtp = function () {
+  const otp = crypto.randomInt(100000, 1000000).toString();
 
-  this.emailVerificationToken = crypto
+  this.emailOtp = crypto.createHash("sha256").update(otp).digest("hex");
+  this.emailOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.otpAttempts = 0;
+  this.otpLastSentAt = new Date();
+
+  return otp;
+};
+
+// ✅ OTP verify karo
+userSchema.methods.verifyEmailOtp = function (candidateOtp) {
+  if (!this.emailOtp || !this.emailOtpExpires) return false;
+  if (this.emailOtpExpires < Date.now()) return false;
+
+  const hashed = crypto
     .createHash("sha256")
-    .update(verificationToken)
+    .update(String(candidateOtp))
     .digest("hex");
 
-  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  return hashed === this.emailOtp;
+};
 
-  return verificationToken;
+// 🧹 OTP clear karo (verify hone ke baad)
+userSchema.methods.clearEmailOtp = function () {
+  this.emailOtp = undefined;
+  this.emailOtpExpires = undefined;
+  this.otpAttempts = 0;
 };
 
 // ✅ Export model
