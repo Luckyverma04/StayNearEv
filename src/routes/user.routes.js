@@ -11,6 +11,7 @@ import {
   deleteUser,
   deleteMyAccount,
   createAdmin,
+  googleLogin,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware, authorize } from "../middleware/auth.middleware.js";
@@ -22,6 +23,7 @@ const router = express.Router();
 // ---------------- Public routes ----------------
 router.post("/signup", signup);
 router.post("/login", login);
+router.post("/google", googleLogin);
 router.post("/verify-otp", verifyOtp);
 router.post("/resend-otp", resendOtp);
 

@@ -23,7 +23,13 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      // Google se aaye user ke paas password nahi hota
+      required: [
+        function () {
+          return !this.googleId;
+        },
+        "Password is required",
+      ],
       minlength: 6,
       select: false,
     },
@@ -32,6 +38,13 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(UserRole),
       default: UserRole.CUSTOMER,
     },
+    // Google login ke liye
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    avatar: String,
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -60,7 +73,7 @@ const userSchema = new mongoose.Schema(
 
 // 🔒 Hash password before saving
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password") || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(12);
