@@ -37,6 +37,16 @@ const welcomeEmailHtml = (name) => `
 // -----------------------------------------------------------------------------
 const createAdmin = async (req, res) => {
   try {
+    // 🔐 Ye route sirf secret key ke saath chalega.
+    //    ADMIN_SETUP_KEY .env me set nahi hai to route band hai.
+    const setupKey = process.env.ADMIN_SETUP_KEY;
+    if (!setupKey || req.header("x-setup-key") !== setupKey) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden",
+      });
+    }
+
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
