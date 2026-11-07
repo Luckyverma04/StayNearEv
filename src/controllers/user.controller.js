@@ -1,6 +1,11 @@
 import { User, UserRole } from "../models/user.model.js";
 import { generateToken } from "../utils/jwt.utils.js";
-import { sendEmail } from "../utils/resendService.utils.js";
+import {
+  sendEmail,
+  sendSignupEmails,
+  otpEmailHtml,
+  approvedEmailHtml,
+} from "../utils/mailer.utils.js";
 import { OAuth2Client } from "google-auth-library";
 
 const googleClient = new OAuth2Client();
@@ -11,29 +16,6 @@ const googleClient = new OAuth2Client();
 // -----------------------------------------------------------------------------
 const EMAIL_VERIFICATION_ON =
   String(process.env.EMAIL_VERIFICATION).toLowerCase() === "true";
-
-// -----------------------------------------------------------------------------
-//  EMAIL TEMPLATES
-// -----------------------------------------------------------------------------
-const otpEmailHtml = (name, otp) => `
-  <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
-    <h2 style="color: #2563eb; margin-bottom: 8px;">StayNearBy</h2>
-    <p>Hi ${name},</p>
-    <p>Your email verification code is:</p>
-    <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; background: #f3f4f6; padding: 16px; text-align: center; border-radius: 8px; margin: 20px 0;">
-      ${otp}
-    </div>
-    <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
-  </div>
-`;
-
-const welcomeEmailHtml = (name) => `
-  <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px;">
-    <h2>🎉 Welcome ${name}!</h2>
-    <p>Your account is now active.</p>
-    <p>Charge closer, drive farther.</p>
-  </div>
-`;
 
 // -----------------------------------------------------------------------------
 //  CREATE ADMIN
@@ -122,12 +104,8 @@ const signup = async (req, res) => {
         isEmailVerified: true,
       });
 
-      // Mail fail ho to bhi signup nahi rukega
-      sendEmail({
-        to: user.email,
-        subject: "🎉 Welcome to StayNearBy!",
-        html: welcomeEmailHtml(user.name),
-      }).catch((err) => console.error("Welcome mail failed:", err.message));
+      // User ko welcome + admin ko alert (fail ho to bhi signup nahi rukega)
+      sendSignupEmails(user, "Email");
 
       return res.status(201).json({
         success: true,
@@ -154,7 +132,7 @@ const signup = async (req, res) => {
 
       await sendEmail({
         to: exists.email,
-        subject: "Your StayNearBy verification code",
+        subject: "Your StayNearEV verification code",
         html: otpEmailHtml(exists.name, otp),
       });
 
@@ -179,7 +157,7 @@ const signup = async (req, res) => {
     try {
       await sendEmail({
         to: user.email,
-        subject: "Your StayNearBy verification code",
+        subject: "Your StayNearEV verification code",
         html: otpEmailHtml(user.name, otp),
       });
     } catch (mailError) {
@@ -250,11 +228,8 @@ const verifyOtp = async (req, res) => {
     user.clearEmailOtp();
     await user.save();
 
-    sendEmail({
-      to: user.email,
-      subject: "🎉 Welcome to StayNearBy!",
-      html: welcomeEmailHtml(user.name),
-    }).catch((err) => console.error("Welcome mail error:", err.message));
+    // OTP verify hua = account active → welcome + admin alert
+    sendSignupEmails(user, "Email (OTP verified)");
 
     res.json({
       success: true,
@@ -302,7 +277,7 @@ const resendOtp = async (req, res) => {
 
     await sendEmail({
       to: user.email,
-      subject: "Your StayNearBy verification code",
+      subject: "Your StayNearEV verification code",
       html: otpEmailHtml(user.name, otp),
     });
 
@@ -444,11 +419,7 @@ const googleLogin = async (req, res) => {
     }
 
     if (isNewUser) {
-      sendEmail({
-        to: user.email,
-        subject: "🎉 Welcome to StayNearEV",
-        html: welcomeEmailHtml(user.name),
-      }).catch((err) => console.error("Welcome email failed:", err.message));
+      sendSignupEmails(user, "Google");
     }
 
     const token = generateToken({
@@ -538,8 +509,8 @@ const verifyUserByAdmin = async (req, res) => {
 
     sendEmail({
       to: user.email,
-      subject: "✅ Your StayNearBy account is approved",
-      html: welcomeEmailHtml(user.name),
+      subject: "✅ Your StayNearEV account is approved",
+      html: approvedEmailHtml(user.name),
     }).catch((err) => console.error("Approval mail error:", err.message));
 
     res.json({
