@@ -60,7 +60,7 @@ export const createBooking = async (req, res) => {
     // Check for overlapping bookings for this station
     const overlappingBooking = await Booking.findOne({
       station: stationId,
-      status: { $in: ['confirmed', 'active'] },
+      status: { $in: ['pending', 'confirmed', 'active'] },
       $or: [
         {
           startTime: { $lt: endDateTime },
@@ -203,7 +203,7 @@ export const getAvailableSlots = async (req, res) => {
     // Get existing bookings for the day
     const existingBookings = await Booking.find({
       station: stationId,
-      status: { $in: ['confirmed', 'active'] },
+      status: { $in: ['pending', 'confirmed', 'active'] },
       startTime: { $gte: startOfDay, $lte: endOfDay }
     });
 
