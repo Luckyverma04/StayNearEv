@@ -109,14 +109,14 @@ export const sendEmail = async ({ to, subject, html, replyTo }) => {
 //  TEMPLATES
 // -----------------------------------------------------------------------------
 const ACCENT = "#00E5A8";
-const appUrl = () =>
+export const appUrl = () =>
   (process.env.FRONTEND_URL || "https://staynearevfrontend.onrender.com").replace(/\/+$/, "");
 
-const escapeHtml = (s = "") =>
+export const escapeHtml = (s = "") =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Common wrapper — dark header, white body (sab email apps me theek dikhta hai)
-const layout = (title, body) => `
+export const layout = (title, body) => `
 <!doctype html>
 <html>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
@@ -146,7 +146,7 @@ const layout = (title, body) => `
 </body>
 </html>`;
 
-const button = (href, label) => `
+export const button = (href, label) => `
   <a href="${href}" style="display:inline-block;margin-top:8px;padding:12px 22px;background:${ACCENT};color:#020617;text-decoration:none;font-weight:bold;border-radius:10px;">${label}</a>`;
 
 export const welcomeEmailHtml = (name) =>

@@ -2,6 +2,11 @@
 import Booking from '../models/booking.model.js';
 import Station from '../models/station.model.js';
 import { User } from '../models/user.model.js';
+import {
+  sendBookingCreatedEmails,
+  sendBookingStatusEmail,
+  sendBookingCancelledByUserEmail,
+} from '../utils/bookingEmails.utils.js';
 
 // ✅ Create a new booking
 export const createBooking = async (req, res) => {
@@ -94,6 +99,9 @@ export const createBooking = async (req, res) => {
     await booking.save();
 
     await booking.populate('station', 'name location pricePerUnit amenities');
+
+    // 📧 User ko "booking received" + owner ko "new booking" (background me)
+    sendBookingCreatedEmails(booking, station);
 
     res.status(201).json({
       success: true,
@@ -393,6 +401,9 @@ export const cancelBooking = async (req, res) => {
     booking.cancelledBy = 'user';
     await booking.save();
 
+    // 📧 Owner ko batao ki customer ne cancel kiya
+    sendBookingCancelledByUserEmail(booking);
+
     res.json({
       success: true,
       message: 'Booking cancelled successfully',
@@ -512,6 +523,9 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     await booking.save();
+
+    // 📧 Confirm / cancel hone par customer ko mail
+    sendBookingStatusEmail(booking, status);
 
     res.json({
       success: true,
