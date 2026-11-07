@@ -11,6 +11,7 @@ import {
   deleteUser,
   deleteMyAccount,
   createAdmin,
+  googleLogin,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware, authorize } from "../middleware/auth.middleware.js";
@@ -22,6 +23,7 @@ const router = express.Router();
 // ---------------- Public routes ----------------
 router.post("/signup", signup);
 router.post("/login", login);
+router.post("/google", googleLogin);
 router.post("/verify-otp", verifyOtp);
 router.post("/resend-otp", resendOtp);
 
@@ -54,15 +56,20 @@ router.delete(
 );
 
 // ---------------- Email test route ----------------
-router.get("/test-email", async (req, res) => {
+// Sirf admin chala sakta hai, aur mail admin ke apne email par jaata hai
+router.get(
+  "/test-email",
+  authMiddleware,
+  authorize(UserRole.ADMIN),
+  async (req, res) => {
   try {
     console.log("🧪 Starting email test...");
 
-    const result = await testResend();
+    const result = await testResend(req.user.email);
 
     res.json({
       success: true,
-      message: "✅ Email test triggered! Check your Gmail inbox.",
+      message: `✅ Test email sent to ${req.user.email}`,
       result,
     });
   } catch (error) {
@@ -72,6 +79,7 @@ router.get("/test-email", async (req, res) => {
       error: error.message,
     });
   }
-});
+  }
+);
 
 export default router;

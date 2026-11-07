@@ -1,6 +1,9 @@
 import { User, UserRole } from "../models/user.model.js";
 import { generateToken } from "../utils/jwt.utils.js";
 import { sendEmail } from "../utils/resendService.utils.js";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client();
 
 // -----------------------------------------------------------------------------
 //  SWITCH: .env me EMAIL_VERIFICATION=true karte hi OTP flow chalu ho jayega.
@@ -37,6 +40,16 @@ const welcomeEmailHtml = (name) => `
 // -----------------------------------------------------------------------------
 const createAdmin = async (req, res) => {
   try {
+    // 🔐 Ye route sirf secret key ke saath chalega.
+    //    ADMIN_SETUP_KEY .env me set nahi hai to route band hai.
+    const setupKey = process.env.ADMIN_SETUP_KEY;
+    if (!setupKey || req.header("x-setup-key") !== setupKey) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden",
+      });
+    }
+
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
@@ -324,6 +337,13 @@ const login = async (req, res) => {
       : false;
 
     if (!isValid) {
+      // Google se bana account hai aur password set nahi hai
+      if (!user.password && user.googleId) {
+        return res.status(401).json({
+          success: false,
+          message: "This account uses Google sign-in. Please continue with Google.",
+        });
+      }
       return res.status(401).json({ success: false, message: "Invalid login" });
     }
 
@@ -360,6 +380,101 @@ const login = async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// -----------------------------------------------------------------------------
+//  GOOGLE LOGIN / SIGNUP
+//  Frontend Google se ek "credential" (ID token) bhejta hai.
+//  Hum use Google se verify karte hain, phir user dhoondte/banate hain.
+// -----------------------------------------------------------------------------
+const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+
+    if (!clientId) {
+      return res.status(500).json({
+        success: false,
+        message: "Google login is not configured on the server",
+      });
+    }
+    if (!credential) {
+      return res.status(400).json({ success: false, message: "Google credential missing" });
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: clientId,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      return res.status(401).json({ success: false, message: "Invalid Google token" });
+    }
+
+    if (!payload?.email || !payload.email_verified) {
+      return res.status(401).json({
+        success: false,
+        message: "Google account email is not verified",
+      });
+    }
+
+    const email = payload.email.toLowerCase();
+    let user = await User.findOne({ $or: [{ googleId: payload.sub }, { email }] });
+    let isNewUser = false;
+
+    if (!user) {
+      user = await User.create({
+        name: payload.name || email.split("@")[0],
+        email,
+        googleId: payload.sub,
+        avatar: payload.picture,
+        isEmailVerified: true, // Google ne email verify kar diya hai
+      });
+      isNewUser = true;
+    } else {
+      // Pehle email/password se bana account — ab Google bhi link kar do
+      let changed = false;
+      if (!user.googleId) { user.googleId = payload.sub; changed = true; }
+      if (!user.isEmailVerified) { user.isEmailVerified = true; changed = true; }
+      if (!user.avatar && payload.picture) { user.avatar = payload.picture; changed = true; }
+      if (changed) await user.save();
+    }
+
+    if (isNewUser) {
+      sendEmail({
+        to: user.email,
+        subject: "🎉 Welcome to StayNearEV",
+        html: welcomeEmailHtml(user.name),
+      }).catch((err) => console.error("Welcome email failed:", err.message));
+    }
+
+    const token = generateToken({
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    });
+
+    res.json({
+      success: true,
+      message: isNewUser ? "Account created with Google" : "Login successful",
+      data: {
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          avatar: user.avatar,
+          isEmailVerified: user.isEmailVerified,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(500).json({ success: false, message: "Google login failed" });
   }
 };
 
@@ -507,4 +622,5 @@ export {
   deleteUser,
   deleteMyAccount,
   createAdmin,
+  googleLogin,
 };

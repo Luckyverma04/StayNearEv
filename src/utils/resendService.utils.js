@@ -30,9 +30,9 @@ export const sendEmail = async ({ to, subject, html }) => {
 };
 
 // 🧪 Test function for route
-export const testResend = async () => {
+export const testResend = async (to) => {
   return await sendEmail({
-    to: "lv001490@gmail.com",
+    to,
     subject: "✅ Resend Email Test (StayNearBy)",
     html: "<h2>Email working successfully from Resend! 🎉</h2>",
   });

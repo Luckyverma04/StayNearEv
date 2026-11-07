@@ -103,6 +103,7 @@ const corsOptions = {
   allowedHeaders: [
     "Content-Type",
     "Authorization",
+    "x-setup-key",
   ],
 
   credentials: true,
