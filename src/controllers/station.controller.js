@@ -4,9 +4,18 @@ import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.j
 // ===============================
 // Create Station  (koi bhi logged-in user)
 // ===============================
+// Map pin: form-data se string aata hai → number banao, galat ho to undefined
+const parseCoord = (value, limit) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) && Math.abs(n) <= limit ? n : undefined;
+};
+
 export const createStation = async (req, res) => {
   try {
     const { name, location, description, pricePerUnit, amenities, chargerTypes } = req.body;
+    const latitude = parseCoord(req.body.latitude, 90);
+    const longitude = parseCoord(req.body.longitude, 180);
 
     if (!req.user || !req.user.userId) {
       return res.status(401).json({
@@ -49,6 +58,8 @@ export const createStation = async (req, res) => {
       chargerTypes: chargerTypes ? JSON.parse(chargerTypes) : [],
       images: imageUrls,
       createdBy: req.user.userId,
+      // Dono ho tabhi pin save karo
+      ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}),
     });
 
     await station.save();
@@ -161,6 +172,17 @@ export const updateStation = async (req, res) => {
     station.pricePerUnit = pricePerUnit || station.pricePerUnit;
     station.amenities = amenities ? JSON.parse(amenities) : station.amenities;
     station.chargerTypes = chargerTypes ? JSON.parse(chargerTypes) : station.chargerTypes;
+
+    // Map pin update (dono saath me aaye tabhi)
+    const latitude = parseCoord(req.body.latitude, 90);
+    const longitude = parseCoord(req.body.longitude, 180);
+    if (latitude !== undefined && longitude !== undefined) {
+      station.latitude = latitude;
+      station.longitude = longitude;
+    } else if (req.body.clearLocation === 'true') {
+      station.latitude = undefined;
+      station.longitude = undefined;
+    }
     station.images = [...station.images, ...newImageUrls];
 
     await station.save();
