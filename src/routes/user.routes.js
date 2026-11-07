@@ -16,7 +16,7 @@ import {
 
 import { authMiddleware, authorize } from "../middleware/auth.middleware.js";
 import { UserRole } from "../models/user.model.js";
-import { testResend } from "../utils/resendService.utils.js";
+import { sendTestEmail } from "../utils/mailer.utils.js";
 
 const router = express.Router();
 
@@ -65,7 +65,7 @@ router.get(
   try {
     console.log("🧪 Starting email test...");
 
-    const result = await testResend(req.user.email);
+    const result = await sendTestEmail(req.user.email);
 
     res.json({
       success: true,
