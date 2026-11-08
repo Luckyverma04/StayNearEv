@@ -12,6 +12,7 @@ import { fileURLToPath } from "url";
 import stationRoutes from "./routes/station.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import bookingRoutes from "./routes/booking.routes.js";
+import publicChargerRoutes from "./routes/publicCharger.routes.js";
 
 const app = express();
 
@@ -180,6 +181,12 @@ app.use(
 app.use(
   "/api/bookings",
   bookingRoutes
+);
+
+// Public EV chargers (OpenStreetMap + Open Charge Map)
+app.use(
+  "/api/public-chargers",
+  publicChargerRoutes
 );
 
 // =====================================================
