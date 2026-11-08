@@ -14,6 +14,9 @@ const stationSchema = new mongoose.Schema(
   {
     name: { type: String, required: [true, "Station name is required"], trim: true },
     location: { type: String, required: [true, "Location is required"], trim: true },
+    // Map pin (optional — purane stations ke paas nahi hai)
+    latitude: { type: Number, min: -90, max: 90 },
+    longitude: { type: Number, min: -180, max: 180 },
     description: { type: String, required: [true, "Description is required"] },
     pricePerUnit: { type: Number, required: [true, "Price per unit is required"] },
     amenities: { type: [String], default: [] },
