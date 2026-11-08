@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "demo:add": "node scripts/demoStations.js add",
+    "demo:remove": "node scripts/demoStations.js remove"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

@@ -17,6 +17,8 @@ const stationSchema = new mongoose.Schema(
     // Map pin (optional — purane stations ke paas nahi hai)
     latitude: { type: Number, min: -90, max: 90 },
     longitude: { type: Number, min: -180, max: 180 },
+    // Testing ke liye nakli station (scripts/demoStations.js) — live frontend par chhupa rehta hai
+    isDemo: { type: Boolean, default: false, index: true },
     description: { type: String, required: [true, "Description is required"] },
     pricePerUnit: { type: Number, required: [true, "Price per unit is required"] },
     amenities: { type: [String], default: [] },
