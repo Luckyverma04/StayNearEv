@@ -1,4 +1,6 @@
 import { User, UserRole } from "../models/user.model.js";
+import Station from "../models/station.model.js";
+import Booking from "../models/booking.model.js";
 import { generateToken } from "../utils/jwt.utils.js";
 import {
   sendEmail,
@@ -568,9 +570,59 @@ const deleteUser = async (req, res) => {
 // -----------------------------------------------------------------------------
 //  DELETE MY ACCOUNT
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+//  UPDATE MY PROFILE (abhi sirf naam)
+// -----------------------------------------------------------------------------
+const updateMyProfile = async (req, res) => {
+  try {
+    const name = String(req.body?.name ?? "").trim().replace(/\s+/g, " ");
+    if (name.length < 2 || name.length > 50) {
+      return res.status(400).json({ success: false, message: "Name must be 2 to 50 characters" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { name },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, message: "Profile updated", data: user });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ success: false, message: "Could not update profile" });
+  }
+};
+
+// -----------------------------------------------------------------------------
+//  DELETE MY ACCOUNT — user ke saath uske stations aur bookings bhi hatao
+// -----------------------------------------------------------------------------
 const deleteMyAccount = async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.user.userId);
+    const userId = req.user.userId;
+
+    // Admin galti se khud ko delete na kar de (warna admin panel band)
+    if (req.user.role === UserRole.ADMIN) {
+      return res.status(403).json({
+        success: false,
+        message: "Admin account can't be deleted from the app",
+      });
+    }
+
+    const myStationIds = (await Station.find({ createdBy: userId }).select("_id")).map((s) => s._id);
+    const [stationBookings, myBookings, stations] = await Promise.all([
+      Booking.deleteMany({ station: { $in: myStationIds } }),
+      Booking.deleteMany({ user: userId }),
+      Station.deleteMany({ createdBy: userId }),
+    ]);
+    await User.findByIdAndDelete(userId);
+
+    console.log(
+      `🗑️ Account ${userId} deleted: ${stations.deletedCount} stations, ` +
+        `${stationBookings.deletedCount + myBookings.deletedCount} bookings`
+    );
     res.json({ success: true, message: "Account deleted successfully" });
   } catch (error) {
     console.error("Delete my account error:", error);
@@ -592,6 +644,7 @@ export {
   getAllUsers,
   deleteUser,
   deleteMyAccount,
+  updateMyProfile,
   createAdmin,
   googleLogin,
 };

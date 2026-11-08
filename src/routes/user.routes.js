@@ -10,6 +10,7 @@ import {
   getAllUsers,
   deleteUser,
   deleteMyAccount,
+  updateMyProfile,
   createAdmin,
   googleLogin,
 } from "../controllers/user.controller.js";
@@ -32,6 +33,7 @@ router.post("/create-admin", createAdmin);
 
 // ---------------- Protected (any logged in user) ----------------
 router.get("/profile", authMiddleware, getProfile);
+router.patch("/me", authMiddleware, updateMyProfile);
 router.delete("/me", authMiddleware, deleteMyAccount);
 
 // ---------------- Admin only ----------------
