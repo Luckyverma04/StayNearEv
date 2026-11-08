@@ -93,7 +93,11 @@ export const createBooking = async (req, res) => {
       endTime: endDateTime,
       duration,
       totalCost,
-      vehicleInfo
+      // Frontend "vehicleModel" bhejta tha, schema me "model" hai — dono chalein
+      vehicleInfo: {
+        ...vehicleInfo,
+        model: vehicleInfo.model || vehicleInfo.vehicleModel || undefined,
+      }
     });
 
     await booking.save();

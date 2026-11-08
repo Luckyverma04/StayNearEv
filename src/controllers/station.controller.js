@@ -4,6 +4,23 @@ import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.j
 // ===============================
 // Create Station  (koi bhi logged-in user)
 // ===============================
+// Arrays form-data se JSON string ("[\"CCS2\"]") ya comma list ("CCS2, Type 2")
+// aur JSON body se seedha array aate hain — teeno sambhalo
+const parseList = (value) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+  const str = String(value).trim();
+  if (str.startsWith('[')) {
+    try {
+      const arr = JSON.parse(str);
+      if (Array.isArray(arr)) return arr.map((v) => String(v).trim()).filter(Boolean);
+    } catch {
+      /* comma list ki tarah try karo */
+    }
+  }
+  return str.split(',').map((v) => v.trim()).filter(Boolean);
+};
+
 // Map pin: form-data se string aata hai → number banao, galat ho to undefined
 const parseCoord = (value, limit) => {
   if (value === undefined || value === null || value === '') return undefined;
@@ -54,8 +71,8 @@ export const createStation = async (req, res) => {
       location,
       description,
       pricePerUnit,
-      amenities: amenities ? JSON.parse(amenities) : [],
-      chargerTypes: chargerTypes ? JSON.parse(chargerTypes) : [],
+      amenities: parseList(amenities) || [],
+      chargerTypes: parseList(chargerTypes) || [],
       images: imageUrls,
       createdBy: req.user.userId,
       // Dono ho tabhi pin save karo
@@ -170,8 +187,8 @@ export const updateStation = async (req, res) => {
     station.location = location || station.location;
     station.description = description || station.description;
     station.pricePerUnit = pricePerUnit || station.pricePerUnit;
-    station.amenities = amenities ? JSON.parse(amenities) : station.amenities;
-    station.chargerTypes = chargerTypes ? JSON.parse(chargerTypes) : station.chargerTypes;
+    station.amenities = parseList(amenities) ?? station.amenities;
+    station.chargerTypes = parseList(chargerTypes) ?? station.chargerTypes;
 
     // Map pin update (dono saath me aaye tabhi)
     const latitude = parseCoord(req.body.latitude, 90);
