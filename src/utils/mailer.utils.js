@@ -108,7 +108,7 @@ export const sendEmail = async ({ to, subject, html, replyTo }) => {
 // -----------------------------------------------------------------------------
 //  TEMPLATES
 // -----------------------------------------------------------------------------
-const ACCENT = "#00E5A8";
+const ACCENT = "#22D3EE";
 export const appUrl = () =>
   (process.env.FRONTEND_URL || "https://staynearevfrontend.onrender.com").replace(/\/+$/, "");
 
@@ -124,7 +124,7 @@ export const layout = (title, body) => `
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;">
         <tr>
-          <td style="background:#020617;padding:22px 28px;">
+          <td style="background:#05061A;padding:22px 28px;">
             <span style="display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;border-radius:8px;background:${ACCENT};color:#020617;font-weight:bold;font-size:18px;">&#9889;</span>
             <span style="color:#F8FAFC;font-size:20px;font-weight:bold;vertical-align:middle;margin-left:8px;">StayNear<span style="color:${ACCENT};">EV</span></span>
           </td>
